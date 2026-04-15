@@ -196,8 +196,33 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
     }
   }, [revalidator.state]);
 
-  // AI analysis cache — lazy loaded on row expand
+  // AI analysis cache — lazy loaded on row expand, also prefetch for ticker display
   const [aiCache, setAiCache] = React.useState<Record<number, AIAnalysis | "loading" | "error">>({});
+
+  // Prefetch AI analysis for all visible events (for ticker column)
+  React.useEffect(() => {
+    const uncached = events.filter(e => !aiCache[e.id]).map(e => e.id);
+    if (uncached.length === 0) return;
+
+    // Fetch in batches of 5
+    const batch = uncached.slice(0, 5);
+    for (const id of batch) {
+      setAiCache((prev) => {
+        if (prev[id]) return prev;
+        return { ...prev, [id]: "loading" };
+      });
+      fetch(`/api/ai/analyze?id=${id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && typeof data === "object" && "summary" in (data as any)) {
+            setAiCache((prev) => ({ ...prev, [id]: data as AIAnalysis }));
+          }
+        })
+        .catch(() => setAiCache((prev) => ({ ...prev, [id]: "error" })));
+    }
+  }, [events]);
+
+  // Also fetch on expand for immediate display
   React.useEffect(() => {
     if (expandedId && !aiCache[expandedId]) {
       setAiCache((prev) => ({ ...prev, [expandedId]: "loading" }));
@@ -570,21 +595,41 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                 <span className="text-[10px] text-orange-400 font-medium">BREAKING</span>
                               )}
                               {/* Show tickers inline on mobile */}
-                              <span className="md:hidden text-[10px] text-zinc-500">
-                                {event.tickers.slice(0, 3).join(", ")}
-                              </span>
+                              {(() => {
+                                const ai = aiCache[event.id];
+                                const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
+                                  ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
+                                  : [];
+                                const merged = [...new Set([...event.tickers, ...aiTickers])];
+                                return merged.length > 0 ? (
+                                  <span className="md:hidden text-[10px] text-zinc-500">{merged.slice(0, 3).join(", ")}</span>
+                                ) : null;
+                              })()}
                             </div>
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
                             <div className="flex flex-wrap gap-1">
-                              {event.tickers.slice(0, 4).map((t) => (
-                                <Badge key={t} variant="outline" className="text-[10px] border-zinc-700 text-zinc-300 shadow-sm">
-                                  {t}
-                                </Badge>
-                              ))}
-                              {event.tickers.length > 4 && (
-                                <span className="text-[10px] text-zinc-500">+{event.tickers.length - 4}</span>
-                              )}
+                              {(() => {
+                                // Merge AI-detected tickers into display
+                                const ai = aiCache[event.id];
+                                const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
+                                  ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
+                                  : [];
+                                const allTickers = [...new Set([...event.tickers, ...aiTickers])];
+                                return allTickers.slice(0, 4).map((t) => (
+                                  <Badge key={t} variant="outline" className="text-[10px] border-zinc-700 text-zinc-300 shadow-sm">
+                                    {t}
+                                  </Badge>
+                                ));
+                              })()}
+                              {(() => {
+                                const ai = aiCache[event.id];
+                                const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
+                                  ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
+                                  : [];
+                                const total = [...new Set([...event.tickers, ...aiTickers])].length;
+                                return total > 4 ? <span className="text-[10px] text-zinc-500">+{total - 4}</span> : null;
+                              })()}
                             </div>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
@@ -617,8 +662,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                         </TableRow>
                         {expandedId === event.id && (
                           <TableRow className="border-zinc-800/50 !bg-zinc-900/95 hover:!bg-zinc-900/95">
-                            <TableCell colSpan={8} className="p-0">
-                              <div className="p-4 max-w-full overflow-hidden">
+                            <TableCell colSpan={8} className="p-0" style={{ maxWidth: 0 }}>
+                              <div className="p-4" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
                               {(() => {
                                 const ai = aiCache[event.id];
                                 const isLoading = ai === "loading";
@@ -629,7 +674,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                 return (
                                   <div className="space-y-4 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
                                     {/* Verdict Reason */}
-                                    <div className={`rounded-lg border p-3 ${cfg.bg} shadow-lg`}
+                                    <div className={`rounded-lg border p-3 overflow-hidden ${cfg.bg} shadow-lg`}
                                       style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
                                       <div className={`text-xs font-semibold mb-1 ${cfg.color}`}>
                                         Why {event.verdict.replace("_", " ")}?
@@ -643,7 +688,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                           Analyzing with AI...
                                         </div>
                                       ) : analysis?.verdict_reason ? (
-                                        <p className="text-zinc-200 break-words">{analysis.verdict_reason}</p>
+                                        <p className="text-zinc-200" style={{ overflowWrap: "anywhere" }}>{analysis.verdict_reason}</p>
                                       ) : (
                                         <p className="text-zinc-400 italic">
                                           {event.verdict} signal based on {event.event_type.replace(/_/g, " ")} with score {event.signal_score >= 0 ? "+" : ""}{event.signal_score}.
@@ -662,7 +707,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                             <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/5" />
                                           </div>
                                         ) : (
-                                          <p className="text-zinc-300 mt-1 leading-relaxed break-words">{analysis!.summary}</p>
+                                          <p className="text-zinc-300 mt-1 leading-relaxed" style={{ overflowWrap: "anywhere" }}>{analysis!.summary}</p>
                                         )}
                                       </div>
                                     )}
@@ -680,16 +725,16 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                         ) : (
                                           <div className="mt-2 space-y-1.5">
                                             {analysis!.ticker_impacts.map((t, i) => (
-                                              <div key={i} className="flex items-center gap-3 text-sm">
-                                                <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-200 font-mono w-14 justify-center">
+                                              <div key={i} className="flex flex-wrap items-start gap-2 text-sm">
+                                                <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-200 font-mono w-14 justify-center shrink-0">
                                                   {t.ticker}
                                                 </Badge>
-                                                <span className={`font-mono text-xs font-bold w-16 ${
+                                                <span className={`font-mono text-xs font-bold shrink-0 ${
                                                   t.direction === "up" ? "text-emerald-400" : t.direction === "down" ? "text-red-400" : "text-zinc-400"
                                                 }`}>
                                                   {t.direction === "up" ? "\u25B2" : t.direction === "down" ? "\u25BC" : "\u25CF"} {t.estimated_pct}
                                                 </span>
-                                                <span className="text-zinc-400 text-xs">{t.reason}</span>
+                                                <span className="text-zinc-400 text-xs min-w-0" style={{ overflowWrap: "anywhere" }}>{t.reason}</span>
                                               </div>
                                             ))}
                                           </div>
