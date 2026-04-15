@@ -476,6 +476,14 @@ export class SignalsDO extends DurableObject<Env> {
     }
   }
 
+  // Notify clients that AI analysis has updated events
+  async broadcastAIUpdate(): Promise<void> {
+    this.broadcast({
+      type: "ai_updated",
+      stats: await this.getStats(),
+    });
+  }
+
   // --- WebSocket real-time stream ---
 
   async handleWebSocket(request: Request): Promise<Response> {

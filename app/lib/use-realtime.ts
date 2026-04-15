@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 interface RealtimeMessage {
-  type: "init" | "new_events" | "pong";
+  type: "init" | "new_events" | "ai_updated" | "pong";
   events?: any[];
   stats?: any;
 }
@@ -43,6 +43,11 @@ export function useRealtimeSignals(options: UseRealtimeOptions = {}) {
           if (data.type === "new_events" && data.events) {
             setNewEventCount((c) => c + data.events!.length);
             onNewEventsRef.current?.(data.events, data.stats);
+          }
+
+          if (data.type === "ai_updated") {
+            // AI analysis finished — trigger revalidation to pick up updated tickers
+            onNewEventsRef.current?.([], data.stats);
           }
         } catch {}
       };

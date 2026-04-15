@@ -461,4 +461,7 @@ Sources: ${event.sources.join(", ")}`,
       }
     }));
   }
+
+  // Broadcast to all connected clients that AI analysis updated tickers/data
+  await stub.broadcastAIUpdate();
 }
