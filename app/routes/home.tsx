@@ -169,14 +169,15 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   // Auto-refresh every 30 minutes with visible countdown
   const REFRESH_INTERVAL = 30 * 60; // 30 minutes in seconds
   const [refreshCountdown, setRefreshCountdown] = React.useState(REFRESH_INTERVAL);
+  const revalidatorRef = React.useRef(revalidator);
+  revalidatorRef.current = revalidator;
 
   React.useEffect(() => {
-    setRefreshCountdown(REFRESH_INTERVAL);
     const tick = setInterval(() => {
       setRefreshCountdown((prev) => {
         if (prev <= 1) {
-          if (revalidator.state === "idle") {
-            revalidator.revalidate();
+          if (revalidatorRef.current.state === "idle") {
+            revalidatorRef.current.revalidate();
           }
           return REFRESH_INTERVAL;
         }
@@ -184,7 +185,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       });
     }, 1_000);
     return () => clearInterval(tick);
-  }, [revalidator]);
+  }, []);
 
   // Track whether a manual refresh is in progress
   const [isManualRefresh, setIsManualRefresh] = React.useState(false);
@@ -192,7 +193,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
     if (revalidator.state === "idle" && isManualRefresh) {
       setIsManualRefresh(false);
     }
-  }, [revalidator.state, isManualRefresh]);
+  }, [revalidator.state]);
 
   // AI analysis cache — lazy loaded on row expand
   const [aiCache, setAiCache] = React.useState<Record<number, AIAnalysis | "loading" | "error">>({});
@@ -485,13 +486,12 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                     setRefreshCountdown(REFRESH_INTERVAL);
                   }
                 }}
-                disabled={isManualRefresh}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
               >
-                <svg className={`w-3.5 h-3.5 transition-transform ${isManualRefresh ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className={`w-3.5 h-3.5 transition-transform ${isManualRefresh || revalidator.state === "loading" ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                {isManualRefresh ? "Refreshing..." : "Refresh"}
+                {isManualRefresh || revalidator.state === "loading" ? "Refreshing..." : "Refresh"}
               </button>
             </div>
           </CardHeader>
