@@ -166,26 +166,25 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
     },
   });
 
-  // Polling fallback — if WebSocket isn't connected, poll every 30 minutes
-  const POLL_INTERVAL = 30 * 60; // 30 minutes in seconds
-  const [pollCountdown, setPollCountdown] = React.useState(POLL_INTERVAL);
+  // Auto-refresh every 30 minutes with visible countdown
+  const REFRESH_INTERVAL = 30 * 60; // 30 minutes in seconds
+  const [refreshCountdown, setRefreshCountdown] = React.useState(REFRESH_INTERVAL);
 
   React.useEffect(() => {
-    if (connected) return;
-    setPollCountdown(POLL_INTERVAL);
+    setRefreshCountdown(REFRESH_INTERVAL);
     const tick = setInterval(() => {
-      setPollCountdown((prev) => {
+      setRefreshCountdown((prev) => {
         if (prev <= 1) {
           if (revalidator.state === "idle") {
             revalidator.revalidate();
           }
-          return POLL_INTERVAL;
+          return REFRESH_INTERVAL;
         }
         return prev - 1;
       });
     }, 1_000);
     return () => clearInterval(tick);
-  }, [connected, revalidator]);
+  }, [revalidator]);
 
   // Track whether a manual refresh is in progress
   const [isManualRefresh, setIsManualRefresh] = React.useState(false);
@@ -296,7 +295,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           <div className="flex items-center gap-3 text-xs text-zinc-500">
             <span className="flex items-center gap-1.5">
               <span className={`inline-block w-2 h-2 rounded-full ${connected ? "bg-emerald-500 animate-pulse" : "bg-blue-500 animate-pulse"}`} />
-              {connected ? "Live" : `Auto-refresh in ${formatCountdown(pollCountdown)}`}
+              {connected ? "Live" : `Next refresh: ${formatCountdown(refreshCountdown)}`}
             </span>
             {stats.last_update && (
               <span>Last update: {formatGMTTime(stats.last_update)} GMT</span>
@@ -354,13 +353,13 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                     const dd = String(date.getDate()).padStart(2, "0");
                     return eventDaySet.has(`${yyyy}-${mm}-${dd}`);
                   }}}
-                  modifiersClassNames={{ hasEvents: "!bg-emerald-500/20 !text-emerald-300 !font-bold" }}
+                  modifiersClassNames={{ hasEvents: "!bg-emerald-900/40 !text-emerald-300 !font-semibold" }}
                   disabled={(date) => date > new Date()}
                   classNames={{
-                    day: "[&[data-selected=true]_button]:!bg-white [&[data-selected=true]_button]:!text-emerald-600 [&[data-selected=true]_button]:!font-bold",
-                    today: "!bg-zinc-800 !text-zinc-100",
+                    today: "!bg-zinc-700 !text-zinc-100 !rounded-md",
+                    disabled: "!text-zinc-700 !opacity-40",
                   }}
-                  className="text-zinc-200"
+                  className="text-zinc-200 [&_[data-selected-single=true]]:!bg-white [&_[data-selected-single=true]]:!text-emerald-700 [&_[data-selected-single=true]]:!font-bold [&_[data-selected-single=true]]:!rounded-md"
                 />
               </PopoverContent>
             </Popover>
@@ -475,17 +474,21 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
             </CardTitle>
             <div className="flex items-center gap-4">
               <span className="text-xs text-zinc-500 font-mono">{nowGMT} GMT</span>
+              <span className="text-xs text-zinc-600 font-mono">
+                {connected ? "" : `⟳ ${formatCountdown(refreshCountdown)}`}
+              </span>
               <button
                 onClick={() => {
                   if (revalidator.state === "idle") {
                     setIsManualRefresh(true);
                     revalidator.revalidate();
+                    setRefreshCountdown(REFRESH_INTERVAL);
                   }
                 }}
-                disabled={revalidator.state !== "idle"}
+                disabled={isManualRefresh}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors disabled:opacity-50"
               >
-                <svg className={`w-3.5 h-3.5 ${isManualRefresh ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className={`w-3.5 h-3.5 transition-transform ${isManualRefresh ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 {isManualRefresh ? "Refreshing..." : "Refresh"}

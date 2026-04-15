@@ -133,11 +133,42 @@ export class SignalsDO extends DurableObject<Env> {
     `);
   }
 
-  async ingestEvents(events: SignalEvent[]): Promise<{ inserted: number }> {
+  async ingestEvents(events: SignalEvent[]): Promise<{ inserted: number; duplicates: number }> {
     let inserted = 0;
+    let duplicates = 0;
     const insertedEvents: SignalEvent[] = [];
     this.ctx.storage.transactionSync(() => {
       for (const ev of events) {
+        // Deduplicate by first article URL
+        const articles = ev.articles || [];
+        if (articles.length > 0) {
+          const firstUrl = articles[0];
+          const existing = this.sql.exec<{ c: number }>(
+            "SELECT COUNT(*) as c FROM events WHERE articles LIKE ?",
+            `%${firstUrl.replace(/'/g, "''")}%`
+          ).one();
+          if (existing && existing.c > 0) {
+            duplicates++;
+            continue;
+          }
+        }
+
+        // Deduplicate by exact subject match on same day
+        if (ev.subject) {
+          const ts = ev.timestamp || new Date().toISOString();
+          const day = ts.split("T")[0];
+          const dayStart = day + "T00:00:00Z";
+          const dayEnd = day + "T23:59:59Z";
+          const subjectDup = this.sql.exec<{ c: number }>(
+            "SELECT COUNT(*) as c FROM events WHERE subject = ? AND timestamp >= ? AND timestamp <= ?",
+            ev.subject, dayStart, dayEnd
+          ).one();
+          if (subjectDup && subjectDup.c > 0) {
+            duplicates++;
+            continue;
+          }
+        }
+
         this.sql.exec(
           `INSERT INTO events
            (subject, event_type, tickers, impact_direction, signal_score,
@@ -176,7 +207,7 @@ export class SignalsDO extends DurableObject<Env> {
       });
     }
 
-    return { inserted };
+    return { inserted, duplicates };
   }
 
   async getEvents(opts: {
@@ -422,6 +453,24 @@ export class SignalsDO extends DurableObject<Env> {
       JSON.stringify(analysis.ticker_impacts),
       analysis.verdict_reason
     );
+
+    // Update event tickers from AI-detected ticker_impacts
+    if (analysis.ticker_impacts && analysis.ticker_impacts.length > 0) {
+      const existingRow = this.sql.exec<{ tickers: string }>(
+        "SELECT tickers FROM events WHERE id = ?", eventId
+      ).toArray();
+      if (existingRow.length > 0) {
+        const existingTickers: string[] = JSON.parse(existingRow[0].tickers as string);
+        const aiTickers = analysis.ticker_impacts.map(t => t.ticker).filter(t => t && t.length <= 6);
+        const merged = [...new Set([...existingTickers, ...aiTickers])];
+        if (merged.length > existingTickers.length) {
+          this.sql.exec(
+            "UPDATE events SET tickers = ? WHERE id = ?",
+            JSON.stringify(merged), eventId
+          );
+        }
+      }
+    }
   }
 
   // --- WebSocket real-time stream ---
