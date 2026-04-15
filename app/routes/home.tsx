@@ -506,7 +506,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-visible">
                 <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow className="border-zinc-800 hover:bg-transparent">
@@ -617,7 +617,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                         </TableRow>
                         {expandedId === event.id && (
                           <TableRow className="border-zinc-800/50 !bg-zinc-900/95 hover:!bg-zinc-900/95">
-                            <TableCell colSpan={8} className="p-4">
+                            <TableCell colSpan={8} className="p-0">
+                              <div className="p-4 max-w-full overflow-hidden">
                               {(() => {
                                 const ai = aiCache[event.id];
                                 const isLoading = ai === "loading";
@@ -642,7 +643,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                           Analyzing with AI...
                                         </div>
                                       ) : analysis?.verdict_reason ? (
-                                        <p className="text-zinc-200">{analysis.verdict_reason}</p>
+                                        <p className="text-zinc-200 break-words">{analysis.verdict_reason}</p>
                                       ) : (
                                         <p className="text-zinc-400 italic">
                                           {event.verdict} signal based on {event.event_type.replace(/_/g, " ")} with score {event.signal_score >= 0 ? "+" : ""}{event.signal_score}.
@@ -661,7 +662,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                             <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/5" />
                                           </div>
                                         ) : (
-                                          <p className="text-zinc-300 mt-1 leading-relaxed max-w-prose">{analysis!.summary}</p>
+                                          <p className="text-zinc-300 mt-1 leading-relaxed break-words">{analysis!.summary}</p>
                                         )}
                                       </div>
                                     )}
@@ -729,7 +730,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                         <div className="mt-1 space-y-1">
                                           {event.articles.slice(0, 3).map((url, i) => (
                                             <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                              className="block text-xs text-emerald-400/80 hover:text-emerald-400 truncate">
+                                              className="block text-xs text-emerald-400/80 hover:text-emerald-400 truncate break-all">
                                               {url}
                                             </a>
                                           ))}
@@ -743,6 +744,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                   </div>
                                 );
                               })()}
+                              </div>
                             </TableCell>
                           </TableRow>
                         )}
