@@ -144,8 +144,8 @@ export class SignalsDO extends DurableObject<Env> {
         if (articles.length > 0) {
           const firstUrl = articles[0];
           const existing = this.sql.exec<{ c: number }>(
-            "SELECT COUNT(*) as c FROM events WHERE articles LIKE ?",
-            `%${firstUrl.replace(/'/g, "''")}%`
+            "SELECT COUNT(*) as c FROM events WHERE instr(articles, ?) > 0",
+            firstUrl
           ).one();
           if (existing && existing.c > 0) {
             duplicates++;
