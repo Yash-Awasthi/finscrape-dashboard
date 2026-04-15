@@ -149,6 +149,18 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const [expandedId, setExpandedId] = React.useState<number | null>(null);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const revalidator = useRevalidator();
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const [cardWidth, setCardWidth] = React.useState(0);
+
+  // Track card width for constraining expanded content
+  React.useEffect(() => {
+    if (!cardRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) setCardWidth(entry.contentRect.width);
+    });
+    ro.observe(cardRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   // Live clock in GMT, updates every minute
   const [nowGMT, setNowGMT] = React.useState(() => formatGMTNow());
@@ -495,7 +507,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Signal Table */}
-        <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl shadow-black/20 transition-all duration-300">
+        <Card ref={cardRef} className="bg-zinc-900/50 border-zinc-800 shadow-xl shadow-black/20 transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-zinc-400">
               Signal Feed — {displayDate} <span className="hidden sm:inline">({events.length} signals)</span>
@@ -531,7 +543,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto overflow-y-visible">
+              <div className="overflow-x-auto">
                 <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow className="border-zinc-800 hover:bg-transparent">
@@ -554,244 +566,239 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                   <TableBody>
                     {events.map((event) => (
                       <React.Fragment key={event.id}>
-                        <TableRow
-                          className="border-zinc-800/50 cursor-pointer transition-all duration-200 hover:bg-zinc-800/40 active:scale-[0.995]"
-                          onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
-                        >
-                          <TableCell>
-                            <VerdictBadge verdict={event.verdict} />
-                          </TableCell>
-                          <TableCell>
-                            <ScoreDisplay score={event.signal_score} />
-                          </TableCell>
-                          <TableCell className="max-w-md">
-                            {event.articles.length > 0 ? (
-                              <a
-                                href={event.articles[0]}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-emerald-300/90 hover:text-emerald-400 underline decoration-emerald-500/30 hover:decoration-emerald-400/60 transition-colors line-clamp-2 block"
-                                onClick={(e) => e.stopPropagation()}
-                                title={`Open: ${event.subject}`}
-                              >
-                                {event.subject}
-                                <svg className="inline-block w-3 h-3 ml-1.5 opacity-50 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </a>
-                            ) : (
-                              <div className="text-zinc-200 line-clamp-2">{event.subject}</div>
+                      <TableRow
+                        className={`border-zinc-800/50 cursor-pointer transition-all duration-200 hover:bg-zinc-800/40 active:scale-[0.995] ${expandedId === event.id ? "!bg-zinc-800/60" : ""}`}
+                        onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
+                      >
+                        <TableCell>
+                          <VerdictBadge verdict={event.verdict} />
+                        </TableCell>
+                        <TableCell>
+                          <ScoreDisplay score={event.signal_score} />
+                        </TableCell>
+                        <TableCell className="max-w-md">
+                          {event.articles.length > 0 ? (
+                            <a
+                              href={event.articles[0]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-300/90 hover:text-emerald-400 underline decoration-emerald-500/30 hover:decoration-emerald-400/60 transition-colors line-clamp-2 block"
+                              onClick={(e) => e.stopPropagation()}
+                              title={`Open: ${event.subject}`}
+                            >
+                              {event.subject}
+                              <svg className="inline-block w-3 h-3 ml-1.5 opacity-50 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          ) : (
+                            <div className="text-zinc-200 line-clamp-2">{event.subject}</div>
+                          )}
+                          <div className="flex gap-2 mt-0.5">
+                            {event.divergence_flag && (
+                              <span className="text-[10px] text-amber-500 font-medium">DIVERGENCE</span>
                             )}
-                            <div className="flex gap-2 mt-0.5">
-                              {event.divergence_flag && (
-                                <span className="text-[10px] text-amber-500 font-medium">DIVERGENCE</span>
-                              )}
-                              {event.magnitude && event.magnitude !== "medium" && (
-                                <span className={`text-[10px] font-medium ${event.magnitude === "high" ? "text-red-400" : "text-zinc-500"}`}>
-                                  {event.magnitude.toUpperCase()} IMPACT
-                                </span>
-                              )}
-                              {event.novelty === "breaking" && (
-                                <span className="text-[10px] text-orange-400 font-medium">BREAKING</span>
-                              )}
-                              {/* Show tickers inline on mobile */}
-                              {(() => {
-                                const ai = aiCache[event.id];
-                                const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
-                                  ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
-                                  : [];
-                                const merged = [...new Set([...event.tickers, ...aiTickers])];
-                                return merged.length > 0 ? (
-                                  <span className="md:hidden text-[10px] text-zinc-500">{merged.slice(0, 3).join(", ")}</span>
-                                ) : null;
-                              })()}
+                            {event.magnitude && event.magnitude !== "medium" && (
+                              <span className={`text-[10px] font-medium ${event.magnitude === "high" ? "text-red-400" : "text-zinc-500"}`}>
+                                {event.magnitude.toUpperCase()} IMPACT
+                              </span>
+                            )}
+                            {event.novelty === "breaking" && (
+                              <span className="text-[10px] text-orange-400 font-medium">BREAKING</span>
+                            )}
+                            {(() => {
+                              const ai = aiCache[event.id];
+                              const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
+                                ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
+                                : [];
+                              const merged = [...new Set([...event.tickers, ...aiTickers])];
+                              return merged.length > 0 ? (
+                                <span className="md:hidden text-[10px] text-zinc-500">{merged.slice(0, 3).join(", ")}</span>
+                              ) : null;
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {(() => {
+                              const ai = aiCache[event.id];
+                              const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
+                                ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
+                                : [];
+                              const allTickers = [...new Set([...event.tickers, ...aiTickers])];
+                              return allTickers.slice(0, 4).map((t) => (
+                                <Badge key={t} variant="outline" className="text-[10px] border-zinc-700 text-zinc-300 shadow-sm">
+                                  {t}
+                                </Badge>
+                              ));
+                            })()}
+                            {(() => {
+                              const ai = aiCache[event.id];
+                              const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
+                                ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
+                                : [];
+                              const total = [...new Set([...event.tickers, ...aiTickers])].length;
+                              return total > 4 ? <span className="text-[10px] text-zinc-500">+{total - 4}</span> : null;
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <span className="text-xs text-zinc-400">{event.event_type.replace(/_/g, " ")}</span>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-12 h-1.5 bg-zinc-800 rounded-full overflow-hidden shadow-inner">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  event.confidence >= 0.7 ? "bg-emerald-500 shadow-emerald-500/50 shadow-sm" : event.confidence >= 0.4 ? "bg-amber-500 shadow-amber-500/50 shadow-sm" : "bg-red-500 shadow-red-500/50 shadow-sm"
+                                }`}
+                                style={{ width: `${event.confidence * 100}%` }}
+                              />
                             </div>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <div className="flex flex-wrap gap-1">
-                              {(() => {
-                                // Merge AI-detected tickers into display
-                                const ai = aiCache[event.id];
-                                const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
-                                  ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
-                                  : [];
-                                const allTickers = [...new Set([...event.tickers, ...aiTickers])];
-                                return allTickers.slice(0, 4).map((t) => (
-                                  <Badge key={t} variant="outline" className="text-[10px] border-zinc-700 text-zinc-300 shadow-sm">
-                                    {t}
-                                  </Badge>
-                                ));
-                              })()}
-                              {(() => {
-                                const ai = aiCache[event.id];
-                                const aiTickers = (typeof ai === "object" && ai !== null && "ticker_impacts" in ai)
-                                  ? (ai as AIAnalysis).ticker_impacts.map(t => t.ticker).filter(Boolean)
-                                  : [];
-                                const total = [...new Set([...event.tickers, ...aiTickers])].length;
-                                return total > 4 ? <span className="text-[10px] text-zinc-500">+{total - 4}</span> : null;
-                              })()}
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            <span className="text-xs text-zinc-400">{event.event_type.replace(/_/g, " ")}</span>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-12 h-1.5 bg-zinc-800 rounded-full overflow-hidden shadow-inner">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-500 ${
-                                    event.confidence >= 0.7 ? "bg-emerald-500 shadow-emerald-500/50 shadow-sm" : event.confidence >= 0.4 ? "bg-amber-500 shadow-amber-500/50 shadow-sm" : "bg-red-500 shadow-red-500/50 shadow-sm"
-                                  }`}
-                                  style={{ width: `${event.confidence * 100}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-zinc-500">{Math.round(event.confidence * 100)}%</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            <div className="flex flex-wrap gap-1">
-                              {event.sources.map((s) => (
-                                <span key={s} className="text-[10px] text-zinc-500 bg-zinc-800/50 px-1.5 py-0.5 rounded">{s}</span>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs whitespace-nowrap">
-                            <div className="text-zinc-300 font-mono">{formatGMTTime(event.timestamp)}</div>
-                            <div className="text-zinc-600 text-[10px]">{formatTimeAgo(event.timestamp)}</div>
-                          </TableCell>
-                        </TableRow>
-                        {expandedId === event.id && (
+                            <span className="text-xs text-zinc-500">{Math.round(event.confidence * 100)}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {event.sources.map((s) => (
+                              <span key={s} className="text-[10px] text-zinc-500 bg-zinc-800/50 px-1.5 py-0.5 rounded">{s}</span>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          <div className="text-zinc-300 font-mono">{formatGMTTime(event.timestamp)}</div>
+                          <div className="text-zinc-600 text-[10px]">{formatTimeAgo(event.timestamp)}</div>
+                        </TableCell>
+                      </TableRow>
+                      {expandedId === event.id && (() => {
+                        const ai = aiCache[event.id];
+                        const isLoading = ai === "loading";
+                        const isError = ai === "error";
+                        const analysis = typeof ai === "object" && ai !== null && "summary" in ai ? ai as AIAnalysis : null;
+                        const cfg = verdictConfig[event.verdict] || verdictConfig.OBSERVE;
+                        return (
                           <TableRow className="border-zinc-800/50 !bg-zinc-900/95 hover:!bg-zinc-900/95">
-                            <TableCell colSpan={8} className="!p-0 !border-0">
-                              <div className="p-4" style={{ width: "calc(100vw - 4rem)", maxWidth: "1568px", overflowWrap: "break-word", wordBreak: "normal" }}>
-                              {(() => {
-                                const ai = aiCache[event.id];
-                                const isLoading = ai === "loading";
-                                const isError = ai === "error";
-                                const analysis = typeof ai === "object" && ai !== null && "summary" in ai ? ai as AIAnalysis : null;
-                                const cfg = verdictConfig[event.verdict] || verdictConfig.OBSERVE;
-
-                                return (
-                                  <div className="space-y-4 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
-                                    {/* Verdict Reason */}
-                                    <div className={`rounded-lg border p-3 ${cfg.bg} shadow-lg`} style={{ overflowWrap: "break-word", wordBreak: "normal" }}>
-                                      <div className={`text-xs font-semibold mb-1 ${cfg.color}`}>
-                                        Why {event.verdict.replace("_", " ")}?
-                                      </div>
-                                      {isLoading ? (
-                                        <div className="flex items-center gap-2 text-zinc-400">
-                                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                          </svg>
-                                          Analyzing with AI...
-                                        </div>
-                                      ) : analysis?.verdict_reason ? (
-                                        <p className="text-zinc-200" style={{ overflowWrap: "break-word", wordBreak: "normal" }}>{analysis.verdict_reason}</p>
-                                      ) : (
-                                        <p className="text-zinc-400 italic">
-                                          {event.verdict} signal based on {event.event_type.replace(/_/g, " ")} with score {event.signal_score >= 0 ? "+" : ""}{event.signal_score}.
-                                        </p>
-                                      )}
+                            <TableCell colSpan={8} className="!p-0 !border-0 !whitespace-normal">
+                              <div className="p-4 animate-in fade-in slide-in-from-top-2 duration-300" style={{ maxWidth: cardWidth > 0 ? `${cardWidth - 32}px` : "100%", overflowWrap: "break-word", wordBreak: "break-word" }}>
+                                <div className="space-y-4 text-sm">
+                                  {/* Verdict Reason */}
+                                  <div className={`rounded-lg border p-3 ${cfg.bg} shadow-lg`}>
+                                    <div className={`text-xs font-semibold mb-1 ${cfg.color}`}>
+                                      Why {event.verdict.replace("_", " ")}?
                                     </div>
-
-                                    {/* AI Summary */}
-                                    {(isLoading || analysis?.summary) && (
-                                      <div>
-                                        <span className="text-zinc-500 text-xs font-medium">Summary</span>
-                                        {isLoading ? (
-                                          <div className="mt-1 space-y-2">
-                                            <div className="h-3 bg-zinc-800 rounded animate-pulse w-full" />
-                                            <div className="h-3 bg-zinc-800 rounded animate-pulse w-4/5" />
-                                            <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/5" />
-                                          </div>
-                                        ) : (
-                                          <p className="text-zinc-300 mt-1 leading-relaxed" style={{ overflowWrap: "break-word", wordBreak: "normal" }}>{analysis!.summary}</p>
-                                        )}
+                                    {isLoading ? (
+                                      <div className="flex items-center gap-2 text-zinc-400">
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                        </svg>
+                                        Analyzing with AI...
                                       </div>
-                                    )}
-
-                                    {/* Ticker Impact Table */}
-                                    {(isLoading || (analysis?.ticker_impacts && analysis.ticker_impacts.length > 0)) && (
-                                      <div>
-                                        <span className="text-zinc-500 text-xs font-medium">Ticker Impact</span>
-                                        {isLoading ? (
-                                          <div className="mt-2 space-y-2">
-                                            {[1, 2].map((i) => (
-                                              <div key={i} className="h-4 bg-zinc-800 rounded animate-pulse w-3/5" />
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <div className="mt-2 space-y-1.5">
-                                            {analysis!.ticker_impacts.map((t, i) => (
-                                              <div key={i} className="flex flex-wrap items-start gap-2 text-sm">
-                                                <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-200 font-mono w-14 justify-center shrink-0">
-                                                  {t.ticker}
-                                                </Badge>
-                                                <span className={`font-mono text-xs font-bold shrink-0 ${
-                                                  t.direction === "up" ? "text-emerald-400" : t.direction === "down" ? "text-red-400" : "text-zinc-400"
-                                                }`}>
-                                                  {t.direction === "up" ? "\u25B2" : t.direction === "down" ? "\u25BC" : "\u25CF"} {t.estimated_pct}
-                                                </span>
-                                                <span className="text-zinc-400 text-xs flex-1 min-w-0" style={{ overflowWrap: "break-word", wordBreak: "normal" }}>{t.reason}</span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Metadata row */}
-                                    <div className="flex flex-wrap gap-4 pt-2 border-t border-zinc-800">
-                                      <div>
-                                        <span className="text-zinc-500 text-[10px] font-medium">Direction</span>
-                                        <p className="text-zinc-300 text-xs capitalize">{event.impact_direction}</p>
-                                      </div>
-                                      {event.magnitude && (
-                                        <div>
-                                          <span className="text-zinc-500 text-[10px] font-medium">Magnitude</span>
-                                          <p className="text-zinc-300 text-xs capitalize">{event.magnitude}</p>
-                                        </div>
-                                      )}
-                                      {event.sector_impact && (
-                                        <div>
-                                          <span className="text-zinc-500 text-[10px] font-medium">Sector</span>
-                                          <p className="text-zinc-300 text-xs capitalize">{event.sector_impact}</p>
-                                        </div>
-                                      )}
-                                      {event.novelty && event.novelty !== "standard" && (
-                                        <div>
-                                          <span className="text-zinc-500 text-[10px] font-medium">Novelty</span>
-                                          <p className="text-zinc-300 text-xs capitalize">{event.novelty}</p>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Source links */}
-                                    {event.articles.length > 0 && (
-                                      <div>
-                                        <span className="text-zinc-500 text-xs font-medium">Sources ({event.articles.length})</span>
-                                        <div className="mt-1 space-y-1">
-                                          {event.articles.slice(0, 3).map((url, i) => (
-                                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                                              className="block text-xs text-emerald-400/80 hover:text-emerald-400 truncate break-all">
-                                              {url}
-                                            </a>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {isError && (
-                                      <p className="text-xs text-zinc-500 italic">AI analysis unavailable — showing heuristic data</p>
+                                    ) : analysis?.verdict_reason ? (
+                                      <p className="text-zinc-200">{analysis.verdict_reason}</p>
+                                    ) : (
+                                      <p className="text-zinc-400 italic">
+                                        {event.verdict} signal based on {event.event_type.replace(/_/g, " ")} with score {event.signal_score >= 0 ? "+" : ""}{event.signal_score}.
+                                      </p>
                                     )}
                                   </div>
-                                );
-                              })()}
+
+                                  {/* AI Summary */}
+                                  {(isLoading || analysis?.summary) && (
+                                    <div>
+                                      <span className="text-zinc-500 text-xs font-medium">Summary</span>
+                                      {isLoading ? (
+                                        <div className="mt-1 space-y-2">
+                                          <div className="h-3 bg-zinc-800 rounded animate-pulse w-full" />
+                                          <div className="h-3 bg-zinc-800 rounded animate-pulse w-4/5" />
+                                          <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/5" />
+                                        </div>
+                                      ) : (
+                                        <p className="text-zinc-300 mt-1 leading-relaxed">{analysis!.summary}</p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Ticker Impact */}
+                                  {(isLoading || (analysis?.ticker_impacts && analysis.ticker_impacts.length > 0)) && (
+                                    <div>
+                                      <span className="text-zinc-500 text-xs font-medium">Ticker Impact</span>
+                                      {isLoading ? (
+                                        <div className="mt-2 space-y-2">
+                                          {[1, 2].map((i) => (
+                                            <div key={i} className="h-4 bg-zinc-800 rounded animate-pulse w-3/5" />
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="mt-2 space-y-1.5">
+                                          {analysis!.ticker_impacts.map((t, i) => (
+                                            <div key={i} className="flex flex-wrap items-start gap-2 text-sm">
+                                              <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-200 font-mono w-14 justify-center shrink-0">
+                                                {t.ticker}
+                                              </Badge>
+                                              <span className={`font-mono text-xs font-bold shrink-0 ${
+                                                t.direction === "up" ? "text-emerald-400" : t.direction === "down" ? "text-red-400" : "text-zinc-400"
+                                              }`}>
+                                                {t.direction === "up" ? "\u25B2" : t.direction === "down" ? "\u25BC" : "\u25CF"} {t.estimated_pct}
+                                              </span>
+                                              <span className="text-zinc-400 text-xs flex-1 min-w-0">{t.reason}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Metadata row */}
+                                  <div className="flex flex-wrap gap-4 pt-2 border-t border-zinc-800">
+                                    <div>
+                                      <span className="text-zinc-500 text-[10px] font-medium">Direction</span>
+                                      <p className="text-zinc-300 text-xs capitalize">{event.impact_direction}</p>
+                                    </div>
+                                    {event.magnitude && (
+                                      <div>
+                                        <span className="text-zinc-500 text-[10px] font-medium">Magnitude</span>
+                                        <p className="text-zinc-300 text-xs capitalize">{event.magnitude}</p>
+                                      </div>
+                                    )}
+                                    {event.sector_impact && (
+                                      <div>
+                                        <span className="text-zinc-500 text-[10px] font-medium">Sector</span>
+                                        <p className="text-zinc-300 text-xs capitalize">{event.sector_impact}</p>
+                                      </div>
+                                    )}
+                                    {event.novelty && event.novelty !== "standard" && (
+                                      <div>
+                                        <span className="text-zinc-500 text-[10px] font-medium">Novelty</span>
+                                        <p className="text-zinc-300 text-xs capitalize">{event.novelty}</p>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Source links */}
+                                  {event.articles.length > 0 && (
+                                    <div>
+                                      <span className="text-zinc-500 text-xs font-medium">Sources ({event.articles.length})</span>
+                                      <div className="mt-1 space-y-1">
+                                        {event.articles.slice(0, 3).map((url, i) => (
+                                          <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                                            className="block text-xs text-emerald-400/80 hover:text-emerald-400 truncate break-all">
+                                            {url}
+                                          </a>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {isError && (
+                                    <p className="text-xs text-zinc-500 italic">AI analysis unavailable — showing heuristic data</p>
+                                  )}
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
-                        )}
+                        );
+                      })()}
                       </React.Fragment>
                     ))}
                   </TableBody>
