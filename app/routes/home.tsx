@@ -126,12 +126,12 @@ function ScoreDisplay({ score }: { score: number }) {
 function StatCard({ title, value, subtitle }: { title: string; value: string | number; subtitle?: string }) {
   return (
     <Card className="bg-zinc-900/50 border-zinc-800 transition-all duration-300 hover:translate-y-[-2px] hover:shadow-lg hover:shadow-emerald-500/5 hover:border-zinc-700">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-zinc-400">{title}</CardTitle>
+      <CardHeader className="pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+        <CardTitle className="text-xs sm:text-sm font-medium text-zinc-400">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-zinc-100">{value}</div>
-        {subtitle && <p className="text-xs text-zinc-500 mt-1">{subtitle}</p>}
+      <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+        <div className="text-xl sm:text-2xl font-bold text-zinc-100">{value}</div>
+        {subtitle && <p className="text-[10px] sm:text-xs text-zinc-500 mt-1 hidden sm:block">{subtitle}</p>}
       </CardContent>
     </Card>
   );
@@ -327,12 +327,12 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
             <h1 className="text-xl font-bold tracking-tight">
               <span className="text-emerald-400">Fin</span>Scrape
             </h1>
-            <nav className="ml-6 flex items-center gap-4 text-sm">
+            <nav className="ml-4 sm:ml-6 flex items-center gap-3 sm:gap-4 text-sm">
               <span className="text-zinc-100 font-medium">Signals</span>
               <Link to="/portfolio" className="text-zinc-400 hover:text-zinc-200 transition-colors">Portfolio</Link>
             </nav>
           </div>
-          <div className="flex items-center gap-3 text-xs text-zinc-500">
+          <div className="hidden sm:flex items-center gap-3 text-xs text-zinc-500">
             <span className="flex items-center gap-1.5">
               <span className={`inline-block w-2 h-2 rounded-full ${connected ? "bg-emerald-500 animate-pulse" : "bg-blue-500 animate-pulse"}`} />
               {connected ? "Live" : `Next refresh: ${formatCountdown(refreshCountdown)}`}
@@ -341,12 +341,17 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
               <span>Last update: {formatGMTTime(stats.last_update)} GMT</span>
             )}
           </div>
+          {/* Mobile: just show the live dot */}
+          <div className="sm:hidden flex items-center gap-1.5 text-xs text-zinc-500">
+            <span className={`inline-block w-2 h-2 rounded-full ${connected ? "bg-emerald-500 animate-pulse" : "bg-blue-500 animate-pulse"}`} />
+            {connected ? "Live" : formatCountdown(refreshCountdown)}
+          </div>
         </div>
       </header>
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
           <StatCard title="Total Signals" value={stats.total_events} />
           <StatCard title="INVEST" value={stats.invest_count} subtitle="Score ≥ 3" />
           <StatCard title="OBSERVE" value={stats.observe_count} subtitle="Score 1-2" />
@@ -441,12 +446,12 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
           <Select
             value={searchParams.get("verdict") || "all"}
             onValueChange={(v) => updateFilter("verdict", v)}
           >
-            <SelectTrigger className="w-[140px] bg-zinc-900 border-zinc-700">
+            <SelectTrigger className="w-[120px] sm:w-[140px] bg-zinc-900 border-zinc-700 text-sm">
               <SelectValue placeholder="Verdict" />
             </SelectTrigger>
             <SelectContent>
@@ -462,7 +467,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
             value={searchParams.get("event_type") || "all"}
             onValueChange={(v) => updateFilter("event_type", v)}
           >
-            <SelectTrigger className="w-[180px] bg-zinc-900 border-zinc-700">
+            <SelectTrigger className="w-[140px] sm:w-[180px] bg-zinc-900 border-zinc-700 text-sm">
               <SelectValue placeholder="Event Type" />
             </SelectTrigger>
             <SelectContent>
@@ -482,8 +487,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           </Select>
 
           <Input
-            placeholder="Filter by ticker (e.g. AAPL)"
-            className="w-[200px] bg-zinc-900 border-zinc-700"
+            placeholder="Ticker (e.g. AAPL)"
+            className="w-[140px] sm:w-[200px] bg-zinc-900 border-zinc-700 text-sm"
             defaultValue={searchParams.get("ticker") || ""}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -508,13 +513,13 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Signal Table */}
         <Card ref={cardRef} className="bg-zinc-900/50 border-zinc-800 shadow-xl shadow-black/20 transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-400">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-zinc-400 truncate mr-2">
               Signal Feed — {displayDate} <span className="hidden sm:inline">({events.length} signals)</span>
             </CardTitle>
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-zinc-500 font-mono">{nowGMT} GMT</span>
-              <span className="text-xs text-zinc-600 font-mono">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+              <span className="hidden sm:inline text-xs text-zinc-500 font-mono">{nowGMT} GMT</span>
+              <span className="hidden sm:inline text-xs text-zinc-600 font-mono">
                 {connected ? "" : `⟳ ${formatCountdown(refreshCountdown)}`}
               </span>
               <button
@@ -679,8 +684,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                         return (
                           <TableRow className="border-zinc-800/50 !bg-zinc-900/95 hover:!bg-zinc-900/95">
                             <TableCell colSpan={8} className="!p-0 !border-0 !whitespace-normal">
-                              <div className="p-4 animate-in fade-in slide-in-from-top-2 duration-300" style={{ maxWidth: cardWidth > 0 ? `${cardWidth - 32}px` : "100%", overflowWrap: "break-word", wordBreak: "break-word" }}>
-                                <div className="space-y-4 text-sm">
+                              <div className="p-3 sm:p-4 animate-in fade-in slide-in-from-top-2 duration-300" style={{ maxWidth: cardWidth > 0 ? `${cardWidth - 32}px` : "100%", overflowWrap: "break-word", wordBreak: "break-word" }}>
+                                <div className="space-y-3 sm:space-y-4 text-sm">
                                   {/* Verdict Reason */}
                                   <div className={`rounded-lg border p-3 ${cfg.bg} shadow-lg`}>
                                     <div className={`text-xs font-semibold mb-1 ${cfg.color}`}>
@@ -811,9 +816,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
       {/* Footer */}
       <footer className="border-t border-zinc-800 px-4 sm:px-6 py-4 mt-8">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between text-xs text-zinc-600">
+        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-600">
           <span>FinScrape v0.4.0</span>
-          <span>POST /api/events to push signals from the pipeline</span>
+          <span className="hidden sm:inline">POST /api/events to push signals from the pipeline</span>
         </div>
       </footer>
     </div>
