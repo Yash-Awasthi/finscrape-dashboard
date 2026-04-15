@@ -662,8 +662,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                         </TableRow>
                         {expandedId === event.id && (
                           <TableRow className="border-zinc-800/50 !bg-zinc-900/95 hover:!bg-zinc-900/95">
-                            <TableCell colSpan={8} className="p-0" style={{ maxWidth: 0 }}>
-                              <div className="p-4" style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                            <TableCell colSpan={8} className="!p-0 !border-0">
+                              <div className="p-4" style={{ width: "calc(100vw - 4rem)", maxWidth: "1568px", overflowWrap: "break-word", wordBreak: "normal" }}>
                               {(() => {
                                 const ai = aiCache[event.id];
                                 const isLoading = ai === "loading";
@@ -674,8 +674,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                 return (
                                   <div className="space-y-4 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
                                     {/* Verdict Reason */}
-                                    <div className={`rounded-lg border p-3 overflow-hidden ${cfg.bg} shadow-lg`}
-                                      style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
+                                    <div className={`rounded-lg border p-3 ${cfg.bg} shadow-lg`} style={{ overflowWrap: "break-word", wordBreak: "normal" }}>
                                       <div className={`text-xs font-semibold mb-1 ${cfg.color}`}>
                                         Why {event.verdict.replace("_", " ")}?
                                       </div>
@@ -688,7 +687,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                           Analyzing with AI...
                                         </div>
                                       ) : analysis?.verdict_reason ? (
-                                        <p className="text-zinc-200" style={{ overflowWrap: "anywhere" }}>{analysis.verdict_reason}</p>
+                                        <p className="text-zinc-200" style={{ overflowWrap: "break-word", wordBreak: "normal" }}>{analysis.verdict_reason}</p>
                                       ) : (
                                         <p className="text-zinc-400 italic">
                                           {event.verdict} signal based on {event.event_type.replace(/_/g, " ")} with score {event.signal_score >= 0 ? "+" : ""}{event.signal_score}.
@@ -707,7 +706,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                             <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/5" />
                                           </div>
                                         ) : (
-                                          <p className="text-zinc-300 mt-1 leading-relaxed" style={{ overflowWrap: "anywhere" }}>{analysis!.summary}</p>
+                                          <p className="text-zinc-300 mt-1 leading-relaxed" style={{ overflowWrap: "break-word", wordBreak: "normal" }}>{analysis!.summary}</p>
                                         )}
                                       </div>
                                     )}
@@ -734,7 +733,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                                 }`}>
                                                   {t.direction === "up" ? "\u25B2" : t.direction === "down" ? "\u25BC" : "\u25CF"} {t.estimated_pct}
                                                 </span>
-                                                <span className="text-zinc-400 text-xs min-w-0" style={{ overflowWrap: "anywhere" }}>{t.reason}</span>
+                                                <span className="text-zinc-400 text-xs flex-1 min-w-0" style={{ overflowWrap: "break-word", wordBreak: "normal" }}>{t.reason}</span>
                                               </div>
                                             ))}
                                           </div>
