@@ -133,10 +133,11 @@ export class SignalsDO extends DurableObject<Env> {
     `);
   }
 
-  async ingestEvents(events: SignalEvent[]): Promise<{ inserted: number; duplicates: number }> {
+  async ingestEvents(events: SignalEvent[]): Promise<{ inserted: number; duplicates: number; insertedIds: number[] }> {
     let inserted = 0;
     let duplicates = 0;
     const insertedEvents: SignalEvent[] = [];
+    const insertedIds: number[] = [];
     this.ctx.storage.transactionSync(() => {
       for (const ev of events) {
         // Deduplicate by first article URL
@@ -193,6 +194,8 @@ export class SignalsDO extends DurableObject<Env> {
           ev.actionability || "",
           ev.sector_impact || ""
         );
+        const lastId = this.sql.exec<{ id: number }>("SELECT last_insert_rowid() as id").one();
+        if (lastId) insertedIds.push(lastId.id);
         insertedEvents.push(ev);
         inserted++;
       }
@@ -207,7 +210,7 @@ export class SignalsDO extends DurableObject<Env> {
       });
     }
 
-    return { inserted, duplicates };
+    return { inserted, duplicates, insertedIds };
   }
 
   async getEvents(opts: {

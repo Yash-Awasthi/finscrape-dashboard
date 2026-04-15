@@ -36,7 +36,7 @@ export default {
 
     // API routes handled directly (bypasses React Router for performance)
     if (url.pathname === "/api/events" && request.method === "POST") {
-      return handleIngestEvents(request, env);
+      return handleIngestEvents(request, env, ctx);
     }
 
     if (url.pathname === "/api/events" && request.method === "GET") {
@@ -83,7 +83,7 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-async function handleIngestEvents(request: Request, env: Env): Promise<Response> {
+async function handleIngestEvents(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const apiKey = request.headers.get("X-API-Key") || request.headers.get("Authorization")?.replace("Bearer ", "");
   if (!apiKey || apiKey !== env.API_KEY) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -98,6 +98,11 @@ async function handleIngestEvents(request: Request, env: Env): Promise<Response>
 
     const stub = getSignalsStub(env);
     const result = await stub.ingestEvents(events as any);
+
+    // Background: trigger AI analysis for all newly inserted events
+    if (result.insertedIds && result.insertedIds.length > 0) {
+      ctx.waitUntil(runBackgroundAIAnalysis(env, stub, result.insertedIds));
+    }
 
     // Send Telegram alerts for high-signal events
     const alertEvents = (events as any[]).filter(
@@ -395,5 +400,65 @@ Timestamp: ${event.timestamp}`,
       ticker_impacts: [],
       verdict_reason: `${event.verdict} signal (score ${event.signal_score}) — AI analysis unavailable.`,
     });
+  }
+}
+
+// Background AI analysis for newly ingested events
+async function runBackgroundAIAnalysis(env: Env, stub: any, eventIds: number[]): Promise<void> {
+  const workersai = createWorkersAI({ binding: env.AI });
+
+  for (let i = 0; i < eventIds.length; i += 3) {
+    const batch = eventIds.slice(i, i + 3);
+    await Promise.allSettled(batch.map(async (eventId) => {
+      try {
+        const cached = await stub.getAIAnalysis(eventId);
+        if (cached) return;
+
+        const event = await stub.getEventById(eventId);
+        if (!event) return;
+
+        const { text } = await generateText({
+          model: workersai("auto", {}),
+          prompt: `You are a senior financial analyst. Analyze this news event and return ONLY valid JSON (no markdown, no code blocks):
+{
+  "summary": "2-3 sentence summary of what happened and its market significance",
+  "ticker_impacts": [
+    { "ticker": "SYM", "direction": "up|down|neutral", "estimated_pct": "+X-Y%", "reason": "brief reason" }
+  ],
+  "verdict_reason": "One sentence explaining why this event warrants a ${event.verdict} verdict"
+}
+
+Event: ${event.subject}
+Verdict: ${event.verdict} (Score: ${event.signal_score >= 0 ? "+" : ""}${event.signal_score})
+Tickers: ${event.tickers.join(", ") || "none identified"}
+Type: ${event.event_type}
+Direction: ${event.impact_direction}
+Sources: ${event.sources.join(", ")}`,
+        });
+
+        let analysis;
+        try {
+          const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+          analysis = JSON.parse(cleaned);
+        } catch {
+          analysis = {
+            summary: text.slice(0, 500),
+            ticker_impacts: event.tickers.map((t: string) => ({
+              ticker: t, direction: event.impact_direction === "positive" ? "up" : event.impact_direction === "negative" ? "down" : "neutral",
+              estimated_pct: "N/A", reason: "AI response not parseable",
+            })),
+            verdict_reason: `${event.verdict} signal based on ${event.event_type} with score ${event.signal_score}.`,
+          };
+        }
+
+        await stub.saveAIAnalysis(eventId, {
+          summary: analysis.summary || "",
+          ticker_impacts: Array.isArray(analysis.ticker_impacts) ? analysis.ticker_impacts : [],
+          verdict_reason: analysis.verdict_reason || "",
+        });
+      } catch (e) {
+        console.error(`Background AI analysis failed for event ${eventId}:`, e);
+      }
+    }));
   }
 }

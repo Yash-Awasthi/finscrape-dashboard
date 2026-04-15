@@ -110,7 +110,8 @@ const verdictConfig: Record<string, { color: string; bg: string }> = {
 function VerdictBadge({ verdict }: { verdict: string }) {
   const cfg = verdictConfig[verdict] || verdictConfig.OBSERVE;
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold border ${cfg.bg} ${cfg.color}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold border shadow-sm ${cfg.bg} ${cfg.color}`}
+      style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>
       {verdict.replace("_", " ")}
     </span>
   );
@@ -124,7 +125,7 @@ function ScoreDisplay({ score }: { score: number }) {
 
 function StatCard({ title, value, subtitle }: { title: string; value: string | number; subtitle?: string }) {
   return (
-    <Card className="bg-zinc-900/50 border-zinc-800">
+    <Card className="bg-zinc-900/50 border-zinc-800 transition-all duration-300 hover:translate-y-[-2px] hover:shadow-lg hover:shadow-emerald-500/5 hover:border-zinc-700">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-zinc-400">{title}</CardTitle>
       </CardHeader>
@@ -277,8 +278,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
-      <header className="border-b border-zinc-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <header className="border-b border-zinc-800 px-4 sm:px-6 py-4 backdrop-blur-sm bg-zinc-950/80 sticky top-0 z-50"
+        style={{ boxShadow: "0 4px 30px rgba(0,0,0,0.4), inset 0 -1px 0 rgba(255,255,255,0.03)" }}>
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
               <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -305,9 +307,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           <StatCard title="Total Signals" value={stats.total_events} />
           <StatCard title="INVEST" value={stats.invest_count} subtitle="Score ≥ 3" />
           <StatCard title="OBSERVE" value={stats.observe_count} subtitle="Score 1-2" />
@@ -468,10 +470,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Signal Table */}
-        <Card className="bg-zinc-900/50 border-zinc-800">
+        <Card className="bg-zinc-900/50 border-zinc-800 shadow-xl shadow-black/20 transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-zinc-400">
-              Signal Feed — {displayDate} ({events.length} signals)
+              Signal Feed — {displayDate} <span className="hidden sm:inline">({events.length} signals)</span>
             </CardTitle>
             <div className="flex items-center gap-4">
               <span className="text-xs text-zinc-500 font-mono">{nowGMT} GMT</span>
@@ -505,22 +507,22 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="w-full table-fixed">
                   <TableHeader>
                     <TableRow className="border-zinc-800 hover:bg-transparent">
-                      <TableHead className="text-zinc-400">Verdict</TableHead>
-                      <TableHead className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort("signal_score")}>
+                      <TableHead className="text-zinc-400 w-[90px]">Verdict</TableHead>
+                      <TableHead className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition-colors w-[60px]" onClick={() => toggleSort("signal_score")}>
                         Score{sortIndicator("signal_score")}
                       </TableHead>
-                      <TableHead className="text-zinc-400">Subject</TableHead>
-                      <TableHead className="text-zinc-400">Tickers</TableHead>
-                      <TableHead className="text-zinc-400">Type</TableHead>
-                      <TableHead className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort("confidence")}>
+                      <TableHead className="text-zinc-400 min-w-[200px]">Subject</TableHead>
+                      <TableHead className="text-zinc-400 w-[100px] hidden md:table-cell">Tickers</TableHead>
+                      <TableHead className="text-zinc-400 w-[110px] hidden lg:table-cell">Type</TableHead>
+                      <TableHead className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition-colors w-[100px] hidden md:table-cell" onClick={() => toggleSort("confidence")}>
                         Confidence{sortIndicator("confidence")}
                       </TableHead>
-                      <TableHead className="text-zinc-400">Sources</TableHead>
-                      <TableHead className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition-colors" onClick={() => toggleSort("timestamp")}>
-                        Time (GMT){sortIndicator("timestamp")}
+                      <TableHead className="text-zinc-400 w-[90px] hidden lg:table-cell">Source</TableHead>
+                      <TableHead className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 transition-colors w-[100px]" onClick={() => toggleSort("timestamp")}>
+                        Time{sortIndicator("timestamp")}
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -528,7 +530,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                     {events.map((event) => (
                       <React.Fragment key={event.id}>
                         <TableRow
-                          className="border-zinc-800 hover:bg-zinc-800/50 cursor-pointer"
+                          className="border-zinc-800/50 cursor-pointer transition-all duration-200 hover:bg-zinc-800/40 active:scale-[0.995]"
                           onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
                         >
                           <TableCell>
@@ -543,17 +545,17 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                 href={event.articles[0]}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="truncate text-emerald-300/90 hover:text-emerald-400 underline decoration-emerald-500/30 hover:decoration-emerald-400/60 transition-colors block"
+                                className="text-emerald-300/90 hover:text-emerald-400 underline decoration-emerald-500/30 hover:decoration-emerald-400/60 transition-colors line-clamp-2 block"
                                 onClick={(e) => e.stopPropagation()}
                                 title={`Open: ${event.subject}`}
                               >
                                 {event.subject}
-                                <svg className="inline-block w-3 h-3 ml-1.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <svg className="inline-block w-3 h-3 ml-1.5 opacity-50 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
                               </a>
                             ) : (
-                              <div className="truncate text-zinc-200">{event.subject}</div>
+                              <div className="text-zinc-200 line-clamp-2">{event.subject}</div>
                             )}
                             <div className="flex gap-2 mt-0.5">
                               {event.divergence_flag && (
@@ -567,12 +569,16 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                               {event.novelty === "breaking" && (
                                 <span className="text-[10px] text-orange-400 font-medium">BREAKING</span>
                               )}
+                              {/* Show tickers inline on mobile */}
+                              <span className="md:hidden text-[10px] text-zinc-500">
+                                {event.tickers.slice(0, 3).join(", ")}
+                              </span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell">
                             <div className="flex flex-wrap gap-1">
                               {event.tickers.slice(0, 4).map((t) => (
-                                <Badge key={t} variant="outline" className="text-[10px] border-zinc-700 text-zinc-300">
+                                <Badge key={t} variant="outline" className="text-[10px] border-zinc-700 text-zinc-300 shadow-sm">
                                   {t}
                                 </Badge>
                               ))}
@@ -581,15 +587,15 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             <span className="text-xs text-zinc-400">{event.event_type.replace(/_/g, " ")}</span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-12 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                              <div className="w-12 h-1.5 bg-zinc-800 rounded-full overflow-hidden shadow-inner">
                                 <div
-                                  className={`h-full rounded-full ${
-                                    event.confidence >= 0.7 ? "bg-emerald-500" : event.confidence >= 0.4 ? "bg-amber-500" : "bg-red-500"
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    event.confidence >= 0.7 ? "bg-emerald-500 shadow-emerald-500/50 shadow-sm" : event.confidence >= 0.4 ? "bg-amber-500 shadow-amber-500/50 shadow-sm" : "bg-red-500 shadow-red-500/50 shadow-sm"
                                   }`}
                                   style={{ width: `${event.confidence * 100}%` }}
                                 />
@@ -597,10 +603,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                               <span className="text-xs text-zinc-500">{Math.round(event.confidence * 100)}%</span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             <div className="flex flex-wrap gap-1">
                               {event.sources.map((s) => (
-                                <span key={s} className="text-[10px] text-zinc-500">{s}</span>
+                                <span key={s} className="text-[10px] text-zinc-500 bg-zinc-800/50 px-1.5 py-0.5 rounded">{s}</span>
                               ))}
                             </div>
                           </TableCell>
@@ -610,7 +616,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                           </TableCell>
                         </TableRow>
                         {expandedId === event.id && (
-                          <TableRow className="border-zinc-800 bg-zinc-900/80">
+                          <TableRow className="border-zinc-800/50 !bg-zinc-900/95 hover:!bg-zinc-900/95">
                             <TableCell colSpan={8} className="p-4">
                               {(() => {
                                 const ai = aiCache[event.id];
@@ -620,9 +626,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                 const cfg = verdictConfig[event.verdict] || verdictConfig.OBSERVE;
 
                                 return (
-                                  <div className="space-y-4 text-sm">
+                                  <div className="space-y-4 text-sm animate-in fade-in slide-in-from-top-2 duration-300">
                                     {/* Verdict Reason */}
-                                    <div className={`rounded-lg border p-3 ${cfg.bg}`}>
+                                    <div className={`rounded-lg border p-3 ${cfg.bg} shadow-lg`}
+                                      style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
                                       <div className={`text-xs font-semibold mb-1 ${cfg.color}`}>
                                         Why {event.verdict.replace("_", " ")}?
                                       </div>
@@ -651,9 +658,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                                           <div className="mt-1 space-y-2">
                                             <div className="h-3 bg-zinc-800 rounded animate-pulse w-full" />
                                             <div className="h-3 bg-zinc-800 rounded animate-pulse w-4/5" />
+                                            <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/5" />
                                           </div>
                                         ) : (
-                                          <p className="text-zinc-300 mt-1">{analysis!.summary}</p>
+                                          <p className="text-zinc-300 mt-1 leading-relaxed max-w-prose">{analysis!.summary}</p>
                                         )}
                                       </div>
                                     )}
@@ -749,8 +757,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-zinc-800 px-6 py-4 mt-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between text-xs text-zinc-600">
+      <footer className="border-t border-zinc-800 px-4 sm:px-6 py-4 mt-8">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between text-xs text-zinc-600">
           <span>FinScrape v0.4.0</span>
           <span>POST /api/events to push signals from the pipeline</span>
         </div>
