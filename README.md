@@ -1,8 +1,8 @@
 # FinScrape Dashboard
 
-Real-time financial signal intelligence dashboard powered by AI. Ingests news from 13+ sources, scores market impact with hybrid AI+heuristic analysis, and streams actionable investment signals with on-demand AI reasoning — all deployed on Cloudflare's edge network.
+> **This repo has been merged into the main [fin-scrape](https://github.com/Yash-Awasthi/fin-scrape) repository as `dashboard/`.** This standalone repo is kept for reference. For the latest code and comprehensive deployment guide, see the [monorepo](https://github.com/Yash-Awasthi/fin-scrape).
 
-**Live:** [finscrape-dashboard.camelai.app](https://finscrape-dashboard-qhuij2.camelai.app)
+Real-time financial signal intelligence dashboard powered by AI. Ingests news from 13+ sources, scores market impact with hybrid AI+heuristic analysis, and streams actionable investment signals with on-demand AI reasoning — all deployed on Cloudflare's edge network.
 
 ---
 
